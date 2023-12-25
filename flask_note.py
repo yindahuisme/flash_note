@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 import os
+import re
 import json
 from time import time, localtime, strftime
 from uuid import getnode as get_machine_id
@@ -94,14 +95,19 @@ def display_notes():
 # 搜索并返回匹配的文档内容
 def search_notes(search_query):
     matches = []
+    # 编译一个正则表达式对象，使用 re.IGNORECASE 来忽略大小写
+    pattern = re.compile(search_query, re.IGNORECASE)
     with open(note_filename, 'r') as f:
         notes = json.load(f)
     for timestamp, note_data in notes.items():
-        keyword_frequency = calculate_keyword_frequency(note_data, search_query.lower())
-        if search_query.lower() in note_data['title'].lower() or search_query.lower() in note_data['content'].lower():
-            matches.append((timestamp, note_data, keyword_frequency))
+        # 搜索标题和内容
+        title_matches = pattern.findall(note_data['title'])
+        content_matches = pattern.findall(note_data['content'])
+        # 如果标题或内容中有匹配项
+        if title_matches or content_matches:
+            matches.append((timestamp, note_data))
     # Sort by keyword frequency and timestamp (newest first)
-    matches.sort(key=lambda x: (-x[2], -float(x[0])))
+    matches.sort(key=lambda x: (-float(x[0])))
     return matches
 
 # 更新搜索结果
@@ -110,20 +116,13 @@ def update_search_results(event):
     if search_query:
         matches = search_notes(search_query)
         search_results.delete(0, tk.END)
-        for timestamp, note_data, _ in matches:
+        for timestamp, note_data in matches:
             local_time = strftime("%Y-%m-%d", localtime(float(timestamp) ))  # 转换为北京时间
             display_text = f"{local_time} {note_data['title']}"
             search_results.insert(tk.END, display_text)
-            if search_query.lower() in note_data['title'].lower() or search_query.lower() in note_data['content'].lower():
-                search_results.itemconfig(tk.END, {'bg':'yellow'})  # 高亮显示匹配的文本
+            search_results.itemconfig(tk.END, {'bg':'yellow'})  # 高亮显示匹配的文本
     else:
         display_notes()
-
-# 计算关键词出现的频率
-def calculate_keyword_frequency(note_data, keyword):
-    title_freq = Counter(note_data['title'].lower().split())
-    content_freq = Counter(note_data['content'].lower().split())
-    return title_freq[keyword] + content_freq[keyword]
 
 # 创建GUI界面
 root = tk.Tk()
@@ -145,7 +144,7 @@ def on_select_search_result(event):
     selection = event.widget.curselection()
     if selection:
         index = selection[0]
-        selected_note_timestamp, note_data, _ = search_notes(search_box.get())[index]
+        selected_note_timestamp, note_data = search_notes(search_box.get())[index]
         title_entry.delete(0, tk.END)
         title_entry.insert(tk.END, note_data['title'])
         content_text_box.delete("1.0", tk.END)

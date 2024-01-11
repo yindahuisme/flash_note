@@ -13,11 +13,6 @@ machine_id = str(get_machine_id())
 # 笔记文件名
 note_filename = f'note_{machine_id}.json'
 
-# 确保笔记文件存在
-if not os.path.exists(note_filename):
-    with open(note_filename, 'w') as f:
-        json.dump({}, f)
-
 # 当前选中的文档时间戳
 selected_note_timestamp = None
 
